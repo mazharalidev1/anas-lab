@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "anas-diagnostics-worker"
+version = "0.1.0"
+description = "Background tasks for diagnostics correlation and cleanup"
+requires-python = ">=3.12"
+dependencies = ["celery[redis]>=5.4,<6.0"]
+[tool.setuptools.packages.find]
+where = ["src"]

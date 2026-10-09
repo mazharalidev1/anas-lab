@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY worker/pyproject.toml /app/pyproject.toml
+COPY worker/src /app/src
+RUN pip install --no-cache-dir .
+ENV PYTHONPATH=/app/src
+CMD ["celery","-A","diagnostics_worker.celery_app:app","worker","--loglevel=INFO"]
