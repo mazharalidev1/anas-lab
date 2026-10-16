@@ -1,5 +1,6 @@
 import psutil
 
+
 def collect_process_summary() -> dict:
     total = running = 0
     for p in psutil.process_iter(attrs=["status"]):

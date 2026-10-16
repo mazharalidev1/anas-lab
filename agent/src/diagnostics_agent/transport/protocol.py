@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Any
+
 from pydantic import BaseModel, Field
+
 
 class MetricsBatch(BaseModel):
     schema_version: int = Field(ge=1)

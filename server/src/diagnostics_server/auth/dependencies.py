@@ -1,6 +1,9 @@
 import secrets
+
 from fastapi import Header, HTTPException, status
+
 from diagnostics_server.config import settings
+
 
 def require_agent_token(authorization: str | None = Header(default=None)) -> None:
     expected = settings.agent_token

@@ -1,5 +1,6 @@
 from diagnostics_agent.collectors import collect_system_snapshot
 
+
 def test_snapshot_shape():
     s = collect_system_snapshot("test-agent")
     assert s["schema_version"] == 1 and s["agent_id"] == "test-agent"

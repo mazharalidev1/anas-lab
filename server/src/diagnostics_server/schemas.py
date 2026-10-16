@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Any
+
 from pydantic import BaseModel, Field
+
 
 class MetricsBatch(BaseModel):
     schema_version: int = Field(ge=1)
@@ -10,3 +12,16 @@ class MetricsBatch(BaseModel):
     observed_at: datetime
     uptime_seconds: int = Field(ge=0)
     metrics: dict[str, Any]
+
+
+class MetricSnapshotRead(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    agent_id: str
+    hostname: str
+    platform: str
+    observed_at: datetime
+    uptime_seconds: int
+    metrics: dict[str, Any]
+    received_at: datetime

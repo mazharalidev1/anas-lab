@@ -1,7 +1,19 @@
 FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
+
 WORKDIR /app
+
 COPY worker/pyproject.toml /app/pyproject.toml
 COPY worker/src /app/src
-RUN pip install --no-cache-dir .
-ENV PYTHONPATH=/app/src
-CMD ["celery","-A","diagnostics_worker.celery_app:app","worker","--loglevel=INFO"]
+
+RUN pip install --no-cache-dir . \
+    && groupadd --system app \
+    && useradd --system --gid app --home-dir /app --no-create-home app \
+    && chown -R app:app /app
+
+USER app
+
+CMD ["celery", "-A", "diagnostics_worker.celery_app:app", "worker", "--loglevel=INFO"]

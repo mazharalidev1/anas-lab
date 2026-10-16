@@ -1,57 +1,136 @@
-# Anas Labs — Production Diagnostics
+# Anas Labs — Host Diagnostics
 
-Open-source diagnostics for Linux hosts and self-hosted applications. The long-term goal is to correlate metrics, service events and logs into evidence-backed incident timelines.
+An open-source diagnostics platform for monitoring Linux hosts, collecting system metrics, and identifying potential health issues.
 
-**Status:** early development / v0.1 scaffold. Interfaces may change.
+**Status:** Early development — v0.1.0. APIs and configuration may change.
 
-## Monorepo layout
+## Features
 
-- `agent/` — lightweight Linux metrics collector and HTTP transport
-- `server/` — FastAPI ingestion API and PostgreSQL persistence
-- `worker/` — Celery tasks for future event correlation and cleanup
-- `web/` — React/Vite dashboard shell
-- `shared/` — versioned data contract
-- `docker/` — local development Compose configuration and Dockerfiles
-- `docs/` — architecture and protocol notes
+- Linux agent for collecting CPU, memory, disk, network, system, and process metrics
+- FastAPI backend with PostgreSQL persistence
+- Authenticated agent-to-server metric ingestion
+- Admin login and session-based dashboard authentication
+- Host and metrics views in the React dashboard
+- Health rules and incident-related API endpoints
+- Redis-backed sessions and login rate limiting
+- Celery worker and Beat services for background tasks
+- Docker Compose development environment
+
+Incident correlation and broader event/log analysis remain ongoing development areas.
+
+## Project structure
+
+- `agent/` — Linux metrics collector and HTTP transport
+- `server/` — FastAPI API, authentication, and PostgreSQL persistence
+- `worker/` — Celery background tasks
+- `web/` — React and Vite dashboard
+- `shared/` — Shared metrics schemas
+- `docker/` — Dockerfiles and Compose configuration
+- `docs/` — Architecture and roadmap
 
 Each Python service has its own `pyproject.toml`.
 
-## Start the backend
+## Requirements
 
-Requirements: Python 3.12+, Docker Compose. Copy `.env.example` to `.env`, then run:
+- Python 3.12+
+- Docker Engine and Docker Compose
+- Node.js and npm for local dashboard development
+
+## Local setup
+
+Create your local environment file:
 
 ```bash
-docker compose -f docker/compose.yml up --build
-curl http://127.0.0.1:8000/health
+cp .env.example .env
 ```
 
-The API is bound to localhost for development. Replace development secrets before any deployment.
+Edit `.env` before starting the services. Set a strong random PostgreSQL password, a matching `DATABASE_URL`, an agent token, an administrator password hash, and a session secret. Keep `.env` private and never commit it.
+
+Start the services:
+
+```bash
+docker compose --env-file .env -f docker/compose.yml up --build -d
+```
+
+Check the API:
+
+```bash
+curl -fsS http://127.0.0.1:8000/health
+```
+
+To inspect service status and logs:
+
+```bash
+docker compose --env-file .env -f docker/compose.yml ps
+docker compose --env-file .env -f docker/compose.yml logs --tail=100 api worker beat
+```
+
+The local API is intended for development. Do not expose it publicly without configuring HTTPS, trusted origins, secure session cookies, and production secrets.
 
 ## Run the agent locally
 
+Create and activate a virtual environment, then install the agent:
+
 ```bash
 cd agent
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
-DIAGNOSTICS_SERVER_URL=http://127.0.0.1:8000 DIAGNOSTICS_AGENT_ID=dev-host DIAGNOSTICS_AGENT_TOKEN=change-this-agent-token python -m diagnostics_agent --once
 ```
 
-Use `python -m diagnostics_agent --print-only` to collect a snapshot without sending it.
+Configure `DIAGNOSTICS_SERVER_URL`, `DIAGNOSTICS_AGENT_ID`, and `DIAGNOSTICS_AGENT_TOKEN` for your environment. The agent token must match the server's configured token.
 
-## Tests
+Collect a snapshot without sending it:
 
 ```bash
-pip install -e 'server/.[dev]'
-pip install -e 'agent/.[dev]'
-pytest server/tests agent/tests
+python -m diagnostics_agent --print-only
 ```
 
-## Security
+Send a single snapshot:
 
-- The agent authenticates with a bearer token.
-- Do not expose this development API publicly.
-- Never send arbitrary shell commands from the server to an agent.
-- Log collection is not enabled in this scaffold because logs can contain secrets.
+```bash
+python -m diagnostics_agent --once
+```
+
+## Dashboard development
+
+```bash
+cd web
+npm ci
+npm run dev
+```
+
+Configure the development environment and trusted origins as needed for your local setup.
+
+## Tests and linting
+
+Install the relevant Python packages and development dependencies for the services you want to test. Run the repository's test suite and Ruff checks from the project root:
+
+```bash
+python -m ruff check agent server shared worker
+python -m pytest -q
+```
+
+Build the dashboard:
+
+```bash
+cd web
+npm ci
+npm run build
+```
+
+## Security notes
+
+- Agents authenticate metric submissions with a bearer token.
+- Protect administrator credentials and session secrets.
+- Do not commit `.env` or share real credentials in logs or screenshots.
+- Keep the API private unless production access controls and HTTPS are configured.
+- Do not execute arbitrary shell commands on monitored hosts through the server.
+- Treat collected system and process information as potentially sensitive.
+
+## Roadmap
+
+See `docs/roadmap.md` for planned work. The project is under active development; the current release is not a claim of production readiness.
 
 ## License
 

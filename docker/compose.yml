@@ -4,8 +4,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-diagnostics}
       POSTGRES_USER: ${POSTGRES_USER:-diagnostics}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-this-local-password}
-    ports: ["127.0.0.1:5432:5432"]
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes: ["postgres_data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -14,7 +13,6 @@ services:
       retries: 10
   redis:
     image: redis:7-alpine
-    ports: ["127.0.0.1:6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -23,15 +21,49 @@ services:
   api:
     build: {context: .., dockerfile: docker/Dockerfile.server}
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-diagnostics}:${POSTGRES_PASSWORD:-change-this-local-password}@postgres:5432/${POSTGRES_DB:-diagnostics}
-      AGENT_TOKEN: ${AGENT_TOKEN:-change-this-agent-token}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      AGENT_TOKEN: ${AGENT_TOKEN:?Set AGENT_TOKEN in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in .env}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:?Set ADMIN_PASSWORD_HASH in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8000,http://localhost:8000}
+      REDIS_URL: redis://redis:6379/0
     ports: ["127.0.0.1:8000:8000"]
     depends_on:
       postgres: {condition: service_healthy}
-  worker:
-    build: {context: .., dockerfile: docker/Dockerfile.worker}
-    environment: {REDIS_URL: redis://redis:6379/0}
-    depends_on:
       redis: {condition: service_healthy}
+  worker:
+    image: docker-worker
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      RETENTION_DAYS: "90"
+      CLEANUP_DRY_RUN: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+  beat:
+    image: docker-worker
+    command:
+      - celery
+      - -A
+      - diagnostics_worker.celery_app:app
+      - beat
+      - --loglevel=INFO
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      RETENTION_DAYS: "90"
+      CLEANUP_DRY_RUN: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:

@@ -1,5 +1,7 @@
 import httpx
+
 from diagnostics_agent.transport.protocol import MetricsBatch
+
 
 class DiagnosticsClient:
     def __init__(self, base_url: str, token: str, timeout: float = 10.0):
